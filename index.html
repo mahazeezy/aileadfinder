@@ -347,7 +347,7 @@ async function pushToSheets() {
 
     // Call Google Sheets API directly from browser
     const getRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A:A`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Leads!A:A`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const existing = await getRes.json();
@@ -361,7 +361,7 @@ async function pushToSheets() {
     if (rows.length === 0) { log('All results already in sheet.', 'warning'); document.getElementById('pushBtn').disabled = false; return; }
 
     const appendRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A:K:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Leads!A:K:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -369,7 +369,7 @@ async function pushToSheets() {
       }
     );
     const result = await appendRes.json();
-    if (result.error) throw new Error(result.error.message);
+    if (result.error) throw new Error(result.error.message || JSON.stringify(result.error));
 
     unpushed.forEach(r => r.pushed = true);
     renderResults();
