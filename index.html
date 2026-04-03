@@ -74,19 +74,31 @@
 </style>
 </head>
 <body>
+
 <div class="header">
   <div class="logo">Elevation<span>.</span> Prospector</div>
   <div class="badge">Lead Finder</div>
 </div>
+
 <div class="grid">
   <div>
     <div class="panel">
       <div class="panel-title">Search Settings</div>
-      <div class="form-group"><label>City</label><input type="text" id="city" placeholder="e.g. Houston"></div>
-      <div class="form-group"><label>State</label><input type="text" id="state" placeholder="e.g. TX" maxlength="2"></div>
+      <div class="form-group">
+        <label>City</label>
+        <input type="text" id="city" placeholder="e.g. Houston">
+      </div>
+      <div class="form-group">
+        <label>State</label>
+        <input type="text" id="state" placeholder="e.g. TX" maxlength="2">
+      </div>
       <div class="form-group">
         <label>Results per industry</label>
-        <select id="limit"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option></select>
+        <select id="limit">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+        </select>
       </div>
       <div class="form-group">
         <label>Industries to search</label>
@@ -105,15 +117,20 @@
       </div>
       <button class="btn" id="searchBtn" onclick="startSearch()">Find Businesses</button>
     </div>
+
     <div class="panel" style="margin-top:1rem;">
       <div class="panel-title">Google Sheets Config</div>
-      <div class="form-group"><label>Sheet ID</label><input type="text" id="sheetId" placeholder="From Google Sheets URL"></div>
+      <div class="form-group">
+        <label>Sheet ID</label>
+        <input type="text" id="sheetId" placeholder="From Google Sheets URL">
+      </div>
       <div class="form-group">
         <label>Service Account JSON</label>
         <textarea id="serviceJson" style="height:80px; resize:none; font-family:monospace; font-size:0.7rem;" placeholder='{"type":"service_account",...}'></textarea>
       </div>
     </div>
   </div>
+
   <div class="panel">
     <div class="stats-row">
       <div class="stat-box"><div class="num" id="totalFound">0</div><div class="lbl">Found</div></div>
@@ -133,7 +150,10 @@
     </div>
     <div style="overflow-x:auto;">
       <table>
-        <thead><tr><th>Business Name</th><th>Industry</th><th>City</th><th>Phone</th><th>Email</th><th>Website</th><th>Status</th></tr></thead>
+        <thead><tr>
+          <th>Business Name</th><th>Industry</th><th>City</th>
+          <th>Phone</th><th>Email</th><th>Website</th><th>Status</th>
+        </tr></thead>
         <tbody id="resultsBody">
           <tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><p>Search results will appear here</p></div></td></tr>
         </tbody>
@@ -141,53 +161,92 @@
     </div>
   </div>
 </div>
+
 <script>
 const INDUSTRY_MAP = {
-  'dental clinic':'Dental Clinic','medical clinic':'Medical Practice','law firm':'Law Firm',
-  'hvac plumbing':'HVAC / Plumbing','hair salon spa':'Hair Salon / Spa','restaurant':'Restaurant',
-  'real estate agency':'Real Estate','auto repair shop':'Auto Repair','chiropractor':'Chiropractic','veterinary clinic':'Veterinary'
+  'dental clinic': 'Dental Clinic', 'medical clinic': 'Medical Practice',
+  'law firm': 'Law Firm', 'hvac plumbing': 'HVAC / Plumbing',
+  'hair salon spa': 'Hair Salon / Spa', 'restaurant': 'Restaurant',
+  'real estate agency': 'Real Estate', 'auto repair shop': 'Auto Repair',
+  'chiropractor': 'Chiropractic', 'veterinary clinic': 'Veterinary'
 };
-let results = [], searching = false;
+
+let results = [];
+let searching = false;
+
 function toggleIndustry(el) { el.classList.toggle('active'); }
-function getSelectedIndustries() { return [...document.querySelectorAll('.ind-check.active')].map(el => el.dataset.value); }
+
+function getSelectedIndustries() {
+  return [...document.querySelectorAll('.ind-check.active')].map(el => el.dataset.value);
+}
+
 function log(msg, type='') {
   const logEl = document.getElementById('log');
   const time = new Date().toTimeString().slice(0,5);
   const line = document.createElement('div');
   line.className = 'log-line';
   line.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
-  logEl.appendChild(line); logEl.scrollTop = logEl.scrollHeight;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
 }
+
 function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
 function updateStats() {
   document.getElementById('totalFound').textContent = results.length;
   document.getElementById('totalEmail').textContent = results.filter(r => r.email).length;
   document.getElementById('totalPushed').textContent = results.filter(r => r.pushed).length;
   document.getElementById('resultCount').textContent = results.length > 0 ? `(${results.length})` : '';
 }
+
 async function api(type, params) {
-  const res = await fetch('/api/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, params }) });
+  const res = await fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type, params })
+  });
   return res.json();
 }
+
 function renderResults() {
   const tbody = document.getElementById('resultsBody');
-  if (results.length === 0) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><p>Search results will appear here</p></div></td></tr>'; return; }
-  tbody.innerHTML = results.map(r => `<tr><td class="name">${r.name}</td><td>${r.industry}</td><td>${r.city}</td><td>${r.phone||'<span style="color:var(--muted)">—</span>'}</td><td>${r.email||'<span style="color:var(--muted)">—</span>'}</td><td>${r.website?`<a href="${r.website}" target="_blank" style="color:var(--accent2);font-size:0.75rem;">Visit</a>`:'<span style="color:var(--muted)">—</span>'}</td><td>${r.pushed?'<span class="tag pushed">Pushed</span>':r.email?'<span class="tag has-email">Has Email</span>':'<span class="tag no-email">No Email</span>'}</td></tr>`).join('');
+  if (results.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🔍</div><p>Search results will appear here</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = results.map(r => `
+    <tr>
+      <td class="name">${r.name}</td>
+      <td>${r.industry}</td>
+      <td>${r.city}</td>
+      <td>${r.phone || '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${r.email || '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${r.website ? `<a href="${r.website}" target="_blank" style="color:var(--accent2);font-size:0.75rem;">Visit</a>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${r.pushed ? '<span class="tag pushed">Pushed</span>' : r.email ? '<span class="tag has-email">Has Email</span>' : '<span class="tag no-email">No Email</span>'}</td>
+    </tr>
+  `).join('');
 }
+
 async function startSearch() {
   if (searching) return;
   const city = document.getElementById('city').value.trim();
   const state = document.getElementById('state').value.trim().toUpperCase();
   const limit = document.getElementById('limit').value;
   const industries = getSelectedIndustries();
+
   if (!city) { log('Please enter a city.', 'error'); return; }
   if (!state) { log('Please enter a state.', 'error'); return; }
   if (industries.length === 0) { log('Please select at least one industry.', 'error'); return; }
-  searching = true; results = [];
+
+  searching = true;
+  results = [];
   document.getElementById('searchBtn').disabled = true;
   document.getElementById('pushBtn').disabled = true;
-  renderResults(); updateStats(); setProgress(0);
+  renderResults();
+  updateStats();
+  setProgress(0);
   log(`Searching ${city}, ${state} across ${industries.length} industries...`);
+
   let done = 0;
   for (const industry of industries) {
     const label = INDUSTRY_MAP[industry];
@@ -197,73 +256,136 @@ async function startSearch() {
       if (data.error) throw new Error(data.error);
       const places = data.results || [];
       log(`Found ${places.length} ${label} businesses`, 'success');
+
       for (const place of places) {
         const details = await api('details', { place_id: place.place_id });
         const result = details.result || {};
         const addrParts = (result.formatted_address || place.formatted_address || '').split(',');
-        const cityName = addrParts.length > 2 ? addrParts[addrParts.length-3]?.trim() || city : city;
+        const cityName = addrParts.length > 2 ? addrParts[addrParts.length - 3]?.trim() || city : city;
+
         let email = '';
         if (result.website) {
           const scrape = await api('scrape', { url: result.website });
           email = scrape.email || '';
           if (email) log(`✓ Email found for ${place.name}`, 'success');
         }
-        results.push({ name: place.name, industry: label, city: cityName, state, phone: result.formatted_phone_number||'', email, website: result.website||'', pushed: false });
-        renderResults(); updateStats();
+
+        results.push({
+          name: place.name,
+          industry: label,
+          city: cityName,
+          state,
+          phone: result.formatted_phone_number || '',
+          email,
+          website: result.website || '',
+          pushed: false
+        });
+
+        renderResults();
+        updateStats();
       }
-    } catch(e) { log(`Error on ${label}: ${e.message}`, 'error'); }
-    done++; setProgress(Math.round((done/industries.length)*100));
+    } catch(e) {
+      log(`Error on ${label}: ${e.message}`, 'error');
+    }
+    done++;
+    setProgress(Math.round((done / industries.length) * 100));
   }
-  log(`Done. ${results.length} found, ${results.filter(r=>r.email).length} with emails.`, 'success');
+
+  log(`Done. ${results.length} businesses found, ${results.filter(r=>r.email).length} with emails.`, 'success');
   searching = false;
   document.getElementById('searchBtn').disabled = false;
   if (results.length > 0) document.getElementById('pushBtn').disabled = false;
 }
+
 async function getAccessToken(serviceAccount) {
-  const header = { alg:'RS256', typ:'JWT' };
-  const now = Math.floor(Date.now()/1000);
-  const claim = { iss: serviceAccount.client_email, scope:'https://www.googleapis.com/auth/spreadsheets', aud:'https://oauth2.googleapis.com/token', exp: now+3600, iat: now };
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const claim = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, iat: now
+  };
   const encode = obj => btoa(JSON.stringify(obj)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-  const toSign = encode(header)+'.'+encode(claim);
-  const pem = serviceAccount.private_key.replace(/\\n/g,'\n');
+  const toSign = encode(header) + '.' + encode(claim);
+  const pem = serviceAccount.private_key.replace(/\\n/g, '\n');
   const pemBody = pem.replace('-----BEGIN PRIVATE KEY-----','').replace('-----END PRIVATE KEY-----','').replace(/\s/g,'');
   const binaryDer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey('pkcs8', binaryDer.buffer, { name:'RSASSA-PKCS1-v1_5', hash:'SHA-256' }, false, ['sign']);
+  const key = await crypto.subtle.importKey('pkcs8', binaryDer.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(toSign));
   const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-  const jwt = toSign+'.'+sigB64;
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:`grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}` });
+  const jwt = toSign + '.' + sigB64;
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
   const tokenData = await tokenRes.json();
-  if (!tokenData.access_token) throw new Error('Auth failed: '+JSON.stringify(tokenData));
+  if (!tokenData.access_token) throw new Error('Auth failed: ' + JSON.stringify(tokenData));
   return tokenData.access_token;
 }
+
 async function pushToSheets() {
   const sheetId = document.getElementById('sheetId').value.trim();
   const serviceJsonRaw = document.getElementById('serviceJson').value.trim();
   if (!sheetId) { log('Please enter your Sheet ID.', 'error'); return; }
   if (!serviceJsonRaw) { log('Please paste your Service Account JSON.', 'error'); return; }
+
   let serviceAccount;
-  try { serviceAccount = JSON.parse(serviceJsonRaw); } catch(e) { log('Invalid JSON.', 'error'); return; }
+  try { serviceAccount = JSON.parse(serviceJsonRaw); }
+  catch(e) { log('Invalid JSON in Service Account field.', 'error'); return; }
+
   const unpushed = results.filter(r => !r.pushed);
   if (unpushed.length === 0) { log('Nothing new to push.', 'warning'); return; }
+
   document.getElementById('pushBtn').disabled = true;
   log('Authenticating with Google...');
+
   try {
     const token = await getAccessToken(serviceAccount);
     log('Authenticated.', 'success');
-    const existing = await api('sheets_get', { sheetId, accessToken: token });
-    const existingNames = (existing.values||[]).flat().map(n => n.toLowerCase());
-    const rows = unpushed.filter(r => !existingNames.includes(r.name.toLowerCase())).map(r => [r.name,'',r.industry,r.city,r.state,r.phone,r.email,'','','','']);
+
+    // Call Google Sheets API directly from browser
+    const getRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A:A`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const existing = await getRes.json();
+    if (existing.error) throw new Error(existing.error.message);
+    const existingNames = (existing.values || []).flat().map(n => n.toLowerCase());
+
+    const rows = unpushed
+      .filter(r => !existingNames.includes(r.name.toLowerCase()))
+      .map(r => [r.name, '', r.industry, r.city, r.state, r.phone, r.email, '', '', '', '']);
+
     if (rows.length === 0) { log('All results already in sheet.', 'warning'); document.getElementById('pushBtn').disabled = false; return; }
-    const result = await api('sheets_append', { sheetId, accessToken: token, rows });
-    if (result.error) throw new Error(result.error);
+
+    const appendRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1!A:K:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values: rows })
+      }
+    );
+    const result = await appendRes.json();
+    if (result.error) throw new Error(result.error.message);
+
     unpushed.forEach(r => r.pushed = true);
-    renderResults(); updateStats();
+    renderResults();
+    updateStats();
     log(`Pushed ${rows.length} businesses to Google Sheets!`, 'success');
-  } catch(e) { log(`Error: ${e.message}`, 'error'); document.getElementById('pushBtn').disabled = false; }
+  } catch(e) {
+    log(`Error: ${e.message}`, 'error');
+    document.getElementById('pushBtn').disabled = false;
+  }
 }
+
 function clearResults() {
-  results = []; renderResults(); updateStats(); setProgress(0);
+  results = [];
+  renderResults();
+  updateStats();
+  setProgress(0);
   document.getElementById('pushBtn').disabled = true;
   document.getElementById('log').innerHTML = '<div class="log-line"><span class="log-time">--:--</span><span class="log-msg">Cleared.</span></div>';
 }
